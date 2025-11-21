@@ -43,6 +43,11 @@ jobs:
         working-directory: ${{ env.workingDirectory }}
       - name: Create new vendor JSON
         run: cp ${{ env.workingDirectory }}/build/maven/yagsl.json ${{ env.workingDirectory }}/build/maven/yagsl-${{inputs.releaseVersion}}.json
+#      - name: Output Pages Tree
+#        run: find ${{ env.workingDirectory }}/build/maven/ -type f
+      - name: Upload pages
+        run: git add . && git commit -m "Automatically add YAGSL version ${{inputs.releaseVersion}}" && git push
+        working-directory: ${{ env.workingDirectory }}/build/maven/
       - name: Create Vendor JSON Repo PR
         uses: wpilibsuite/vendor-json-repo/.github/actions/add_vendordep@main
         with:
@@ -52,11 +57,6 @@ jobs:
           pr_title: "Automatically add YAGSL version ${{inputs.releaseVersion}}"
           pr_branch: "publish_yagsl_${{inputs.releaseVersion}}"
         continue-on-error: true
-#      - name: Output Pages Tree
-#        run: find ${{ env.workingDirectory }}/build/maven/ -type f
-      - name: Upload pages
-        run: git add . && git commit -m "Automatically add YAGSL version ${{inputs.releaseVersion}}" && git push
-        working-directory: ${{ env.workingDirectory }}/build/maven/
 #      - name: Setup Pages
 #        id: pages
 #        uses: actions/configure-pages@v5
