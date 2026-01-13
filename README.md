@@ -1,3 +1,6 @@
+EXAMPLE REPOSITORY FROM LAST YEAR:
+https://github.com/MisterKermit/FRC-2090-2025-YAGSL-NEW
+
 # Yet Another Generic Swerve Library (YAGSL) Example project
 
 YAGSL is intended to be an easy implementation of a generic swerve drive that should work for most
