@@ -43,14 +43,15 @@ public class CrescendoAmp extends Goal {
                 Centimeters.of(46),
                 "Note",
                 isBlue ? blueAmpPose : redAmpPose,
-                isBlue);
+                isBlue,
+                false);
 
         crescendoArena = arena;
 
         setNeededAngle(new Rotation3d(0, Math.PI / 2, Math.PI / 2));
 
         StructPublisher<Pose3d> ampPublisher = NetworkTableInstance.getDefault()
-                .getStructTopic(isBlue ? "BlueAmp" : "RedAmp", Pose3d.struct)
+                .getStructTopic("/SmartDashboard/MapleSim/Goals/" + (isBlue ? "BlueAmp" : "RedAmp"), Pose3d.struct)
                 .publish();
         ampPublisher.set(new Pose3d(position, this.pieceAngle));
     }

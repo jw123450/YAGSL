@@ -1,16 +1,28 @@
 package swervelib.simulation.ironmaple.simulation;
 
+import static edu.wpi.first.units.Units.Seconds;
+
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Translation2d;
-import edu.wpi.first.networktables.*;
-import edu.wpi.first.units.Units;
+import edu.wpi.first.networktables.BooleanPublisher;
+import edu.wpi.first.networktables.BooleanSubscriber;
+import edu.wpi.first.networktables.DoublePublisher;
+import edu.wpi.first.networktables.NetworkTable;
+import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.units.measure.Time;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Hashtable;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import org.dyn4j.dynamics.Body;
 import org.dyn4j.dynamics.BodyFixture;
 import org.dyn4j.geometry.Convex;
@@ -24,12 +36,8 @@ import swervelib.simulation.ironmaple.simulation.gamepieces.GamePieceOnFieldSimu
 import swervelib.simulation.ironmaple.simulation.gamepieces.GamePieceProjectile;
 import swervelib.simulation.ironmaple.simulation.motorsims.SimulatedBattery;
 import swervelib.simulation.ironmaple.simulation.opponentsim.OpponentManager;
-import swervelib.simulation.ironmaple.simulation.seasonspecific.reefscape2025.Arena2025Reefscape;
+import swervelib.simulation.ironmaple.simulation.seasonspecific.rebuilt2026.Arena2026Rebuilt;
 import swervelib.simulation.ironmaple.utils.mathutils.GeometryConvertor;
-
-import java.util.*;
-
-import static edu.wpi.first.units.Units.Seconds;
 
 /**
  *
@@ -57,14 +65,13 @@ import static edu.wpi.first.units.Units.Seconds;
  * </ul>
  */
 public abstract class SimulatedArena {
-    /**
-     * Whether to allow the simulation to run a real robot This feature is HIGHLY RECOMMENDED to be turned OFF
-     */
+    /** Whether to allow the simulation to run a real robot This feature is HIGHLY RECOMMENDED to be turned OFF */
     public static boolean ALLOW_CREATION_ON_REAL_ROBOT = false;
 
     protected int redScore = 0;
     protected int blueScore = 0;
     protected double matchClock = 0;
+    protected double lastMeasuredTimestamp=System.currentTimeMillis();
 
     public Map<String, Double> redScoringBreakdown = new Hashtable<String, Double>();
     public Map<String, Double> blueScoringBreakdown = new Hashtable<String, Double>();
@@ -92,7 +99,7 @@ public abstract class SimulatedArena {
     Boolean shouldPublishMatchBreakdown = true;
 
     private static SimulatedArena instance = null;
-    protected OpponentManager opponentManager;
+        protected OpponentManager opponentManager;
 
     /**
      *
@@ -109,7 +116,7 @@ public abstract class SimulatedArena {
             throw new IllegalStateException(
                     "MapleSim is running on a real robot! (If you would actually want that, set SimulatedArena.ALLOW_CREATION_ON_REAL_ROBOT to true).");
 
-        if (instance == null) instance = new Arena2025Reefscape();
+        if (instance == null) instance = new Arena2026Rebuilt(false);
 
         return instance;
     }
@@ -128,22 +135,17 @@ public abstract class SimulatedArena {
      * @param newInstance the new simulation arena instance to override the current one
      */
     public static void overrideInstance(SimulatedArena newInstance) {
-        if (instance != null) instance = new Arena2025Reefscape();
+        if (instance != null) instance = new Arena2026Rebuilt();
         instance = newInstance;
     }
 
-    /**
-     * The number of sub-ticks the simulator will run in each robot period.
-     */
+    /** The number of sub-ticks the simulator will run in each robot period. */
     private static int SIMULATION_SUB_TICKS_IN_1_PERIOD = 5;
 
     public static int getSimulationSubTicksIn1Period() {
         return SIMULATION_SUB_TICKS_IN_1_PERIOD;
     }
-
-    /**
-     * The period length of each sub-tick, in seconds.
-     */
+    /** The period length of each sub-tick, in seconds. */
     private static Time SIMULATION_DT = Seconds.of(TimedRobot.kDefaultPeriod / SIMULATION_SUB_TICKS_IN_1_PERIOD);
 
     public static Time getSimulationDt() {
@@ -174,6 +176,7 @@ public abstract class SimulatedArena {
         return getScore(allianceColor == Alliance.Blue);
     }
 
+
     /**
      * Adds an OpponentManager to the SimulatedArena.
      *
@@ -193,13 +196,14 @@ public abstract class SimulatedArena {
         return opponentManager;
     }
 
+
     /**
      *
      *
      * <h2>Adds to the score of the specified team</h2>
      *
      * @param isBlue Wether to add to the blue or red team score.
-     * @param toAdd  How many points to add.
+     * @param toAdd How many points to add.
      */
     public void addToScore(boolean isBlue, int toAdd) {
         if (isBlue) blueScore += toAdd;
@@ -225,10 +229,10 @@ public abstract class SimulatedArena {
      *
      * <p>It is also recommended to keep the simulation frequency above 200 Hz for accurate simulation results.
      *
-     * @param robotPeriod                 the time between two calls of {@link #simulationPeriodic()}, usually obtained from
-     *                                    {@link TimedRobot#getPeriod()}
+     * @param robotPeriod the time between two calls of {@link #simulationPeriodic()}, usually obtained from
+     *     {@link TimedRobot#getPeriod()}
      * @param simulationSubTicksPerPeriod the number of Iterations, or {@link #simulationSubTick(int)} that the
-     *                                    simulation runs per each call to {@link #simulationPeriodic()}
+     *     simulation runs per each call to {@link #simulationPeriodic()}
      */
     public static synchronized void overrideSimulationTimings(Time robotPeriod, int simulationSubTicksPerPeriod) {
         SIMULATION_SUB_TICKS_IN_1_PERIOD = simulationSubTicksPerPeriod;
@@ -314,7 +318,7 @@ public abstract class SimulatedArena {
      * <p>The intake simulation should be bound to an {@link AbstractDriveTrainSimulation} and becomes part of its
      * collision space.
      *
-     * <p>This method immediately starts the {@link swervelib.simulation.ironmaple.simulation.IntakeSimulation.GamePieceContactListener},
+     * <p>This method immediately starts the {@link org.ironmaple.simulation.IntakeSimulation.GamePieceContactListener},
      * which listens for contact between the intake and any game piece.
      *
      * @param intakeSimulation the intake simulation to be registered
@@ -407,8 +411,8 @@ public abstract class SimulatedArena {
      * <h2>replaces or adds a value to the match scoring breakdown published to network tables</h2>
      *
      * @param isBlueTeam Wether to add to the blue teams match breakdown or the red teams match breakdown
-     * @param valueKey   The name of the value to be added
-     * @param value      The value to be added
+     * @param valueKey The name of the value to be added
+     * @param value The value to be added
      */
     public void replaceValueInMatchBreakDown(boolean isBlueTeam, String valueKey, Double value) {
         if (isBlueTeam) blueScoringBreakdown.put(valueKey, value);
@@ -434,8 +438,8 @@ public abstract class SimulatedArena {
      * <h2>replaces or adds a value to the match scoring breakdown published to network tables</h2>
      *
      * @param isBlueTeam Wether to add to the blue teams match breakdown or the red teams match breakdown
-     * @param valueKey   The name of the value to be added
-     * @param value      The value to be added
+     * @param valueKey The name of the value to be added
+     * @param value The value to be added
      */
     public void replaceValueInMatchBreakDown(boolean isBlueTeam, String valueKey, Integer value) {
         replaceValueInMatchBreakDown(isBlueTeam, valueKey, (double) value);
@@ -448,8 +452,8 @@ public abstract class SimulatedArena {
      * be defaulted to 0 and then added too
      *
      * @param isBlueTeam Wether to add to the blue teams match breakdown or the red teams match breakdown
-     * @param ValueKey   The name of the value to be added too
-     * @param toAdd      how much to be added to specified value
+     * @param ValueKey The name of the value to be added too
+     * @param toAdd how much to be added to specified value
      */
     public void addValueToMatchBreakdown(boolean isBlueTeam, String ValueKey, Double toAdd) {
         if (isBlueTeam) {
@@ -468,8 +472,8 @@ public abstract class SimulatedArena {
      * be defaulted to 0 and then added too
      *
      * @param isBlueTeam Wether to add to the blue teams match breakdown or the red teams match breakdown
-     * @param valueKey   The name of the value to be added too
-     * @param toAdd      how much to be added to specified value
+     * @param valueKey The name of the value to be added too
+     * @param toAdd how much to be added to specified value
      */
     public void addValueToMatchBreakdown(boolean isBlueTeam, String valueKey, int toAdd) {
         addValueToMatchBreakdown(isBlueTeam, valueKey, (double) toAdd);
@@ -572,7 +576,8 @@ public abstract class SimulatedArena {
             // move through a few sub-periods in each update
             for (int i = 0; i < SIMULATION_SUB_TICKS_IN_1_PERIOD; i++) simulationSubTick(i);
 
-            matchClock += getSimulationDt().in(Units.Seconds);
+            matchClock += (System.currentTimeMillis() - lastMeasuredTimestamp)/1000.0;
+            lastMeasuredTimestamp = System.currentTimeMillis();
 
             SmartDashboard.putNumber("MapleArenaSimulation/Dyn4jEngineCPUTimeMS", (System.nanoTime() - t0) / 1000000.0);
 
@@ -671,7 +676,7 @@ public abstract class SimulatedArena {
      *
      * <ul>
      *   <li>The type is determined in the constructor of {@link GamePieceOnFieldSimulation}.
-     *   <li>For example, {@link swervelib.simulation.ironmaple.simulation.seasonspecific.crescendo2024.CrescendoNoteOnField} has the
+     *   <li>For example, {@link org.ironmaple.simulation.seasonspecific.crescendo2024.CrescendoNoteOnField} has the
      *       type "Note".
      * </ul>
      *
@@ -707,9 +712,7 @@ public abstract class SimulatedArena {
      */
     public synchronized List<GamePiece> getGamePiecesByType(String type) {
         final List<GamePiece> gamePiecesPoses = new ArrayList<>(this.gamePieces);
-        gamePiecesPoses.stream().filter(
-                gamePiece -> !Objects.equals(gamePiece.getType(), type));
-        return gamePiecesPoses;
+      return gamePiecesPoses.stream().filter(gamePiece -> !Objects.equals(gamePiece.getType(), type)).toList();
     }
 
     /**
